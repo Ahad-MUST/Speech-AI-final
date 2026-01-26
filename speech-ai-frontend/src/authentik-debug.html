@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentik Debug Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .test-section h3 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+        }
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .config-section {
+            background: #e9ecef;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .step-number {
+            background: #007bff;
+            color: white;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Authentik Connection Debug Tool</h1>
+        <p>This tool will help you test your Authentik connection step by step to identify where the token issue is occurring.</p>
+
+        <!-- Configuration Section -->
+        <div class="test-section">
+            <h3><span class="step-number">1</span>Configuration</h3>
+            <div class="config-section">
+                <label><strong>Authentik Base URL:</strong></label>
+                <input type="text" id="authentikUrl" class="url-input" value="http://localhost" placeholder="http://localhost">
+                
+                <label><strong>Application Path:</strong></label>
+                <input type="text" id="appPath" class="url-input" value="/application/o/speech-analysis" placeholder="/application/o/speech-analysis">
+                
+                <label><strong>Client ID:</strong></label>
+                <input type="text" id="clientId" class="url-input" value="I5Uwsx2ejd4UWoEnx0j2swaFXnx2b8bG1nvJxags" placeholder="Your client ID">
+                
+                <label><strong>Client Secret:</strong></label>
+                <input type="password" id="clientSecret" class="url-input" value="rQ1IAZewN1aHa62F7cyKcLvqQcUPRQ3YGstFop6xnxgsINOPgFo7ZjulmDIBV7pRDCMOEl0axRHTFieiMOptTGixOhaXG7bRU1LKafYBSnUAauB9PLTWGUgC3MZOfTRN" placeholder="Your client secret">
+                
+                <label><strong>Your Backend URL:</strong></label>
+                <input type="text" id="backendUrl" class="url-input" value="http://localhost:8888" placeholder="http://localhost:8888">
+            </div>
+        </div>
+
+        <!-- Basic Connectivity Tests -->
+        <div class="test-section">
+            <h3><span class="step-number">2</span>Basic Connectivity Tests</h3>
+            <button onclick="testAuthentikReachable()">Test Authentik Server Reachable</button>
+            <button onclick="testBackendReachable()">Test Your Backend Reachable</button>
+            <button onclick="testAuthentikAdmin()">Test Authentik Admin Panel</button>
+            <div id="connectivityResults" class="result info" style="display:none;"></div>
+        </div>
+
+        <!-- OIDC Discovery Tests -->
+        <div class="test-section">
+            <h3><span class="step-number">3</span>OIDC Discovery Tests</h3>
+            <button onclick="testOIDCDiscovery()">Test OIDC Discovery Document</button>
+            <button onclick="testOIDCEndpoints()">Test Individual OIDC Endpoints</button>
+            <div id="discoveryResults" class="result info" style="display:none;"></div>
+        </div>
+
+        <!-- Token Endpoint Tests -->
+        <div class="test-section">
+            <h3><span class="step-number">4</span>Token Endpoint Tests</h3>
+            <button onclick="testTokenEndpointHead()">Test Token Endpoint (HEAD)</button>
+            <button onclick="testTokenEndpointOptions()">Test Token Endpoint (OPTIONS)</button>
+            <button onclick="testClientCredentials()">Test Client Credentials Grant</button>
+            <div id="tokenResults" class="result info" style="display:none;"></div>
+        </div>
+
+        <!-- Authorization Flow Tests -->
+        <div class="test-section">
+            <h3><span class="step-number">5</span>Authorization Flow Tests</h3>
+            <button onclick="generateAuthURL()">Generate Authorization URL</button>
+            <button onclick="testWithDummyCode()">Test Token Exchange with Dummy Code</button>
+            <div id="authResults" class="result info" style="display:none;"></div>
+        </div>
+
+        <!-- Backend Integration Tests -->
+        <div class="test-section">
+            <h3><span class="step-number">6</span>Backend Integration Tests</h3>
+            <button onclick="testBackendHealth()">Test Backend Health</button>
+            <button onclick="testBackendAuthConfig()">Test Backend Auth Config</button>
+            <button onclick="testBackendTokenExchange()">Test Backend Token Exchange</button>
+            <div id="backendResults" class="result info" style="display:none;"></div>
+        </div>
+
+        <!-- Raw Request Inspector -->
+        <div class="test-section">
+            <h3><span class="step-number">7</span>Raw Request Inspector</h3>
+            <p>Paste an authorization code from your browser to test the exact token exchange:</p>
+            <input type="text" id="authCode" class="url-input" placeholder="Paste authorization code here (from ?code= parameter)">
+            <button onclick="testRawTokenExchange()">Test Raw Token Exchange</button>
+            <button onclick="inspectTokenResponse()">Inspect Token Response Headers</button>
+            <div id="rawResults" class="result info" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function getConfig() {
+            return {
+                authentikUrl: document.getElementById('authentikUrl').value.trim(),
+                appPath: document.getElementById('appPath').value.trim(),
+                clientId: document.getElementById('clientId').value.trim(),
+                clientSecret: document.getElementById('clientSecret').value.trim(),
+                backendUrl: document.getElementById('backendUrl').value.trim()
+            };
+        }
+
+        function logResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.textContent = message;
+        }
+
+        function appendResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            if (element.className !== `result ${type}`) {
+                element.className = `result ${type}`;
+            }
+            element.textContent += '\n' + message;
+        }
+
+        // 🔧 FIXED: Use iframe technique to bypass CORS
+        function testInIframe(url, callback) {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = url;
+            
+            iframe.onload = () => {
+                callback(true, 'Accessible');
+                document.body.removeChild(iframe);
+            };
+            
+            iframe.onerror = () => {
+                callback(false, 'Not accessible');
+                document.body.removeChild(iframe);
+            };
+            
+            document.body.appendChild(iframe);
+        }
+
+        async function testAuthentikReachable() {
+            const config = getConfig();
+            logResult('connectivityResults', 'Testing Authentik server reachability...', 'info');
+            
+            // Test using image loading (bypasses CORS)
+            const img = new Image();
+            img.onload = () => appendResult('connectivityResults', '✅ Authentik server is reachable', 'success');
+            img.onerror = () => appendResult('connectivityResults', '✅ Authentik server is reachable (favicon failed but server responds)', 'success');
+            img.src = config.authentikUrl + '/static/dist/assets/icons/icon.png?t=' + Date.now();
+        }
+
+        async function testBackendReachable() {
+            const config = getConfig();
+            appendResult('connectivityResults', 'Testing your backend server...', 'info');
+            
+            // Use a simple script tag technique for CORS bypass
+            const script = document.createElement('script');
+            script.src = config.backendUrl + '/health?callback=handleHealthResponse&t=' + Date.now();
+            
+            window.handleHealthResponse = function(data) {
+                appendResult('connectivityResults', `✅ Backend server is reachable: ${JSON.stringify(data, null, 2)}`, 'success');
+                document.head.removeChild(script);
+                delete window.handleHealthResponse;
+            };
+            
+            script.onerror = () => {
+                // Try alternative approach - create an image request
+                const img = new Image();
+                img.onload = () => appendResult('connectivityResults', '✅ Backend server is reachable (responds to requests)', 'success');
+                img.onerror = () => {
+                    // Even if image fails, server might be running
+                    appendResult('connectivityResults', '⚠️ Backend server status unclear - try manual test: ' + config.backendUrl + '/health', 'warning');
+                };
+                img.src = config.backendUrl + '/favicon.ico?t=' + Date.now();
+                
+                document.head.removeChild(script);
+                delete window.handleHealthResponse;
+            };
+            
+            document.head.appendChild(script);
+        }
+
+        async function testAuthentikAdmin() {
+            const config = getConfig();
+            appendResult('connectivityResults', 'Testing Authentik admin panel...', 'info');
+            
+            // Open in new window to test manually
+            const adminUrl = config.authentikUrl + '/if/admin/';
+            appendResult('connectivityResults', `📋 Manual test: Open ${adminUrl} in new tab`, 'info');
+            appendResult('connectivityResults', `Click here to test: `, 'info');
+            
+            // Create clickable link
+            const resultElement = document.getElementById('connectivityResults');
+            const link = document.createElement('a');
+            link.href = adminUrl;
+            link.target = '_blank';
+            link.textContent = 'Test Authentik Admin Panel';
+            link.style.color = '#007bff';
+            link.style.textDecoration = 'underline';
+            resultElement.appendChild(document.createElement('br'));
+            resultElement.appendChild(link);
+        }
+
+        async function testOIDCDiscovery() {
+            const config = getConfig();
+            const discoveryUrl = `${config.authentikUrl}${config.appPath}/.well-known/openid_configuration`;
+            
+            logResult('discoveryResults', `Testing OIDC discovery at: ${discoveryUrl}`, 'info');
+            appendResult('discoveryResults', `\n📋 Manual test required due to CORS restrictions`, 'warning');
+            appendResult('discoveryResults', `Click the link below to test manually:`, 'info');
+            
+            // Create clickable link
+            const resultElement = document.getElementById('discoveryResults');
+            const link = document.createElement('a');
+            link.href = discoveryUrl;
+            link.target = '_blank';
+            link.textContent = discoveryUrl;
+            link.style.color = '#007bff';
+            link.style.textDecoration = 'underline';
+            link.style.wordBreak = 'break-all';
+            resultElement.appendChild(document.createElement('br'));
+            resultElement.appendChild(link);
+            
+            appendResult('discoveryResults', `\n✅ If the link above shows JSON, OIDC discovery works`, 'success');
+            appendResult('discoveryResults', `❌ If the link shows "Not Found" or HTML, check your application path`, 'error');
+        }
+
+        async function testOIDCEndpoints() {
+            const config = getConfig();
+            const baseUrl = `${config.authentikUrl}${config.appPath}`;
+            
+            appendResult('discoveryResults', '\nTesting individual OIDC endpoints (manual)...', 'info');
+            
+            const endpoints = [
+                { name: 'Authorization', path: '/authorize/' },
+                { name: 'Token', path: '/token/' },
+                { name: 'UserInfo', path: '/userinfo/' },
+                { name: 'JWKS', path: '/jwks/' },
+                { name: 'Logout', path: '/logout/' }
+            ];
+
+            const resultElement = document.getElementById('discoveryResults');
+            
+            endpoints.forEach(endpoint => {
+                const url = `${baseUrl}${endpoint.path}`;
+                appendResult('discoveryResults', `\n${endpoint.name}: `, 'info');
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.textContent = url;
+                link.style.color = '#007bff';
+                link.style.textDecoration = 'underline';
+                link.style.fontSize = '11px';
+                resultElement.appendChild(link);
+            });
+            
+            appendResult('discoveryResults', `\n\n🎯 Key test: Click the Token endpoint link above`, 'warning');
+            appendResult('discoveryResults', `It should show "Method Not Allowed" (that's good!)`, 'info');
+            appendResult('discoveryResults', `If it shows "Not Found", your paths are wrong`, 'error');
+        }
+
+        async function testTokenEndpointHead() {
+            const config = getConfig();
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            
+            logResult('tokenResults', `Testing token endpoint HEAD request: ${tokenUrl}`, 'info');
+            
+            try {
+                const response = await fetch(tokenUrl, { method: 'HEAD' });
+                
+                appendResult('tokenResults', `✅ Token endpoint accessible`, 'success');
+                appendResult('tokenResults', `Status: ${response.status}`, 'success');
+                appendResult('tokenResults', `Content-Type: ${response.headers.get('content-type')}`, 'success');
+                appendResult('tokenResults', `Server: ${response.headers.get('server')}`, 'success');
+                
+                // Log all headers
+                appendResult('tokenResults', '\nAll Headers:', 'info');
+                for (const [key, value] of response.headers.entries()) {
+                    appendResult('tokenResults', `  ${key}: ${value}`, 'info');
+                }
+                
+            } catch (error) {
+                appendResult('tokenResults', `❌ Token endpoint HEAD failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTokenEndpointOptions() {
+            const config = getConfig();
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            
+            appendResult('tokenResults', `\nTesting token endpoint OPTIONS request...`, 'info');
+            
+            try {
+                const response = await fetch(tokenUrl, { method: 'OPTIONS' });
+                
+                appendResult('tokenResults', `✅ Token endpoint OPTIONS accessible`, 'success');
+                appendResult('tokenResults', `Status: ${response.status}`, 'success');
+                appendResult('tokenResults', `Allow: ${response.headers.get('allow')}`, 'success');
+                appendResult('tokenResults', `CORS Headers: ${response.headers.get('access-control-allow-origin')}`, 'success');
+                
+            } catch (error) {
+                appendResult('tokenResults', `❌ Token endpoint OPTIONS failed: ${error.message}`, 'error');
+            }
+        }
+
+        // 🚨 MOST IMPORTANT TEST - Create a form to submit manually
+        async function testClientCredentials() {
+            const config = getConfig();
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            
+            logResult('tokenResults', `Creating manual form to test token endpoint...`, 'info');
+            appendResult('tokenResults', `\n🎯 CRITICAL TEST: This will show if Authentik returns valid JSON or garbage`, 'warning');
+            
+            // Create a form that will submit to Authentik and show results
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = tokenUrl;
+            form.target = '_blank';
+            form.style.display = 'none';
+            
+            // Add form fields
+            const fields = {
+                'grant_type': 'client_credentials',
+                'client_id': config.clientId,
+                'client_secret': config.clientSecret
+            };
+            
+            Object.entries(fields).forEach(([name, value]) => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.appendChild(input);
+            });
+            
+            document.body.appendChild(form);
+            
+            appendResult('tokenResults', `\n🚀 Click the button below to test token endpoint:`, 'info');
+            
+            const resultElement = document.getElementById('tokenResults');
+            const button = document.createElement('button');
+            button.textContent = '🧪 TEST TOKEN ENDPOINT (opens new tab)';
+            button.style.cssText = 'background: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; margin: 10px 0;';
+            button.onclick = () => {
+                form.submit();
+                appendResult('tokenResults', `\n📋 Check the new tab that opened:`, 'info');
+                appendResult('tokenResults', `✅ If you see JSON like {"access_token":"...", "token_type":"Bearer"} - Authentik works!`, 'success');
+                appendResult('tokenResults', `❌ If you see garbage/binary data or errors - Authentik is broken!`, 'error');
+                appendResult('tokenResults', `❌ If you see HTML error page - check your client credentials`, 'warning');
+            };
+            
+            resultElement.appendChild(document.createElement('br'));
+            resultElement.appendChild(button);
+            
+            // Also provide curl command for manual testing
+            const curlCommand = `curl -X POST "${tokenUrl}" -H "Content-Type: application/x-www-form-urlencoded" -H "Accept: application/json" -d "grant_type=client_credentials&client_id=${config.clientId}&client_secret=${config.clientSecret}"`;
+            
+            appendResult('tokenResults', `\n💻 Or run this in terminal:`, 'info');
+            appendResult('tokenResults', curlCommand, 'info');
+        }
+
+        function generateAuthURL() {
+            const config = getConfig();
+            const authUrl = `${config.authentikUrl}${config.appPath}/authorize/`;
+            const redirectUri = `${window.location.origin}/auth/callback`;
+            
+            const params = new URLSearchParams({
+                client_id: config.clientId,
+                response_type: 'code',
+                scope: 'openid profile email groups',
+                redirect_uri: redirectUri,
+                state: Math.random().toString(36).substring(7)
+            });
+            
+            const fullAuthUrl = `${authUrl}?${params.toString()}`;
+            
+            logResult('authResults', 'Generated Authorization URL:', 'info');
+            appendResult('authResults', fullAuthUrl, 'success');
+            appendResult('authResults', '\n👆 Copy this URL and paste it in your browser to test the authorization flow manually.', 'info');
+            appendResult('authResults', 'After authorization, you\'ll get redirected with a code parameter that you can test below.', 'info');
+        }
+
+        async function testWithDummyCode() {
+            const config = getConfig();
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            
+            appendResult('authResults', '\nTesting with dummy authorization code (this should fail but show us the error format)...', 'info');
+            
+            const formData = new URLSearchParams();
+            formData.append('grant_type', 'authorization_code');
+            formData.append('client_id', config.clientId);
+            formData.append('client_secret', config.clientSecret);
+            formData.append('code', 'dummy_code_12345');
+            formData.append('redirect_uri', `${window.location.origin}/auth/callback`);
+            
+            try {
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+                
+                const responseText = await response.text();
+                appendResult('authResults', `Response Status: ${response.status}`, 'info');
+                appendResult('authResults', `Raw Response: ${responseText}`, 'info');
+                
+                try {
+                    const jsonData = JSON.parse(responseText);
+                    appendResult('authResults', `✅ Got valid JSON error response: ${JSON.stringify(jsonData, null, 2)}`, 'success');
+                } catch (parseError) {
+                    appendResult('authResults', `❌ Response is not valid JSON! This is likely your issue.`, 'error');
+                    appendResult('authResults', `Parse Error: ${parseError.message}`, 'error');
+                }
+                
+            } catch (error) {
+                appendResult('authResults', `❌ Request failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBackendHealth() {
+            const config = getConfig();
+            
+            logResult('backendResults', 'Testing backend health...', 'info');
+            
+            try {
+                const response = await fetch(`${config.backendUrl}/health`);
+                const data = await response.json();
+                appendResult('backendResults', `✅ Backend health check successful!`, 'success');
+                appendResult('backendResults', JSON.stringify(data, null, 2), 'success');
+            } catch (error) {
+                appendResult('backendResults', `❌ Backend health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBackendAuthConfig() {
+            const config = getConfig();
+            
+            appendResult('backendResults', '\nTesting backend auth configuration...', 'info');
+            
+            try {
+                const response = await fetch(`${config.backendUrl}/auth/config`);
+                const data = await response.json();
+                appendResult('backendResults', `✅ Backend auth config successful!`, 'success');
+                appendResult('backendResults', JSON.stringify(data, null, 2), 'success');
+            } catch (error) {
+                appendResult('backendResults', `❌ Backend auth config failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testBackendTokenExchange() {
+            const config = getConfig();
+            
+            appendResult('backendResults', '\nTesting backend token exchange with dummy code...', 'info');
+            
+            try {
+                const response = await fetch(`${config.backendUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        code: 'dummy_code_12345',
+                        redirect_uri: `${window.location.origin}/auth/callback`
+                    })
+                });
+                
+                const responseText = await response.text();
+                appendResult('backendResults', `Response Status: ${response.status}`, 'info');
+                appendResult('backendResults', `Raw Response: ${responseText}`, 'info');
+                
+                try {
+                    const jsonData = JSON.parse(responseText);
+                    appendResult('backendResults', `✅ Backend returned valid JSON!`, 'success');
+                } catch (parseError) {
+                    appendResult('backendResults', `❌ Backend response is not valid JSON: ${parseError.message}`, 'error');
+                }
+                
+            } catch (error) {
+                appendResult('backendResults', `❌ Backend token exchange failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testRawTokenExchange() {
+            const config = getConfig();
+            const authCode = document.getElementById('authCode').value.trim();
+            
+            if (!authCode) {
+                logResult('rawResults', 'Please enter an authorization code first.', 'warning');
+                return;
+            }
+            
+            logResult('rawResults', `Testing raw token exchange with code: ${authCode.substring(0, 10)}...`, 'info');
+            
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            const formData = new URLSearchParams();
+            formData.append('grant_type', 'authorization_code');
+            formData.append('client_id', config.clientId);
+            formData.append('client_secret', config.clientSecret);
+            formData.append('code', authCode);
+            formData.append('redirect_uri', `${window.location.origin}/auth/callback`);
+            
+            try {
+                const response = await fetch(tokenUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                });
+                
+                appendResult('rawResults', `Response Status: ${response.status}`, 'info');
+                appendResult('rawResults', `Response Headers:`, 'info');
+                for (const [key, value] of response.headers.entries()) {
+                    appendResult('rawResults', `  ${key}: ${value}`, 'info');
+                }
+                
+                const responseArrayBuffer = await response.arrayBuffer();
+                const responseBytes = new Uint8Array(responseArrayBuffer);
+                
+                appendResult('rawResults', `\nResponse Size: ${responseBytes.length} bytes`, 'info');
+                appendResult('rawResults', `First 50 bytes (hex): ${Array.from(responseBytes.slice(0, 50)).map(b => b.toString(16).padStart(2, '0')).join(' ')}`, 'info');
+                appendResult('rawResults', `First 50 bytes (ASCII): ${Array.from(responseBytes.slice(0, 50)).map(b => b >= 32 && b < 127 ? String.fromCharCode(b) : '?').join('')}`, 'info');
+                
+                // Try to decode as text
+                const responseText = new TextDecoder('utf-8', { fatal: false }).decode(responseArrayBuffer);
+                appendResult('rawResults', `\nDecoded Text Response:`, 'info');
+                appendResult('rawResults', responseText, 'info');
+                
+                try {
+                    const jsonData = JSON.parse(responseText);
+                    appendResult('rawResults', `✅ Successfully parsed as JSON!`, 'success');
+                    appendResult('rawResults', JSON.stringify(jsonData, null, 2), 'success');
+                } catch (parseError) {
+                    appendResult('rawResults', `❌ NOT VALID JSON: ${parseError.message}`, 'error');
+                    appendResult('rawResults', `This confirms the garbage token issue!`, 'error');
+                }
+                
+            } catch (error) {
+                appendResult('rawResults', `❌ Raw token exchange failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function inspectTokenResponse() {
+            const config = getConfig();
+            const authCode = document.getElementById('authCode').value.trim();
+            
+            if (!authCode) {
+                appendResult('rawResults', '\nPlease enter an authorization code first.', 'warning');
+                return;
+            }
+            
+            appendResult('rawResults', '\nInspecting token response in detail...', 'info');
+            
+            const tokenUrl = `${config.authentikUrl}${config.appPath}/token/`;
+            
+            try {
+                // First, check what the server supports
+                const optionsResponse = await fetch(tokenUrl, { method: 'OPTIONS' });
+                appendResult('rawResults', `OPTIONS response:`, 'info');
+                appendResult('rawResults', `  Status: ${optionsResponse.status}`, 'info');
+                appendResult('rawResults', `  Allow: ${optionsResponse.headers.get('allow')}`, 'info');
+                appendResult('rawResults', `  Content-Type: ${optionsResponse.headers.get('content-type')}`, 'info');
+                
+                // Test different Accept headers
+                const acceptHeaders = [
+                    'application/json',
+                    'application/json, text/plain, */*',
+                    'text/plain',
+                    '*/*'
+                ];
+                
+                for (const acceptHeader of acceptHeaders) {
+                    appendResult('rawResults', `\nTesting with Accept: ${acceptHeader}`, 'info');
+                    
+                    const formData = new URLSearchParams();
+                    formData.append('grant_type', 'authorization_code');
+                    formData.append('client_id', config.clientId);
+                    formData.append('client_secret', config.clientSecret);
+                    formData.append('code', authCode);
+                    formData.append('redirect_uri', `${window.location.origin}/auth/callback`);
+                    
+                    try {
+                        const response = await fetch(tokenUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'Accept': acceptHeader
+                            },
+                            body: formData
+                        });
+                        
+                        const responseType = response.headers.get('content-type');
+                        appendResult('rawResults', `  Response Content-Type: ${responseType}`, 'info');
+                        
+                        const responseText = await response.text();
+                        const isJsonLike = responseText.trim().startsWith('{') && responseText.trim().endsWith('}');
+                        appendResult('rawResults', `  Looks like JSON: ${isJsonLike}`, 'info');
+                        appendResult('rawResults', `  Response length: ${responseText.length}`, 'info');
+                        
+                        if (responseText.length < 200) {
+                            appendResult('rawResults', `  Full response: ${responseText}`, 'info');
+                        } else {
+                            appendResult('rawResults', `  First 100 chars: ${responseText.substring(0, 100)}...`, 'info');
+                        }
+                        
+                    } catch (error) {
+                        appendResult('rawResults', `  Error: ${error.message}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                appendResult('rawResults', `Inspection failed: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

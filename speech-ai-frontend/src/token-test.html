@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><title>Token Test</title></head>
+<body>
+<h2>🧪 Manual Token Test</h2>
+<form method="POST" action="http://localhost/application/o/token/" target="_blank">
+    <input type="hidden" name="grant_type" value="client_credentials">
+    <input type="hidden" name="client_id" value="I5Uwsx2ejd4UWoEnx0j2swaFXnx2b8bG1nvJxags">
+    <input type="hidden" name="client_secret" value="rQ1IAZewN1aHa62F7cyKcLvqQcUPRQ3YGstFop6xnxgsINOPgFo7ZjulmDIBV7pRDCMOEl0axRHTFieiMOptTGixOhaXG7bRU1LKafYBSnUAauB9PLTWGUgC3MZOfTRN">
+    <button type="submit" style="background: red; color: white; padding: 15px; font-size: 16px;">
+        🚀 TEST TOKEN ENDPOINT
+    </button>
+</form>
+<p><strong>What you should see after clicking:</strong></p>
+<p>✅ <strong>GOOD:</strong> Clean JSON with access_token</p>
+<p>❌ <strong>BAD:</strong> Garbage/binary data (your issue)</p>
+</body>
+</html>

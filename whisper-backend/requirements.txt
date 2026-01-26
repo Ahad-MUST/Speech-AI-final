@@ -1,0 +1,36 @@
+# Core FastAPI and server dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+
+# Database dependencies
+sqlalchemy==2.0.23
+alembic==1.12.1
+# sqlite3  # Built-in with Python
+
+# Data validation and serialization
+pydantic==2.4.2
+pydantic-settings==2.0.3
+
+# HTTP client and CORS
+httpx==0.25.1
+aiofiles==23.2.1
+
+# AI/ML dependencies
+torch==2.1.0
+torchaudio==2.1.0
+openai-whisper==20231117
+speechbrain==0.5.15
+librosa==0.10.1
+numpy==1.24.3
+scipy==1.11.3
+
+# Audio processing
+ffmpeg-python==0.2.0
+pydub==0.25.1
+
+# Utility libraries
+python-dotenv==1.0.0
+requests==2.31.0
+typing-extensions==4.8.0

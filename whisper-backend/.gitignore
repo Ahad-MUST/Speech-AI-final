@@ -1,0 +1,104 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# PyCharm
+.idea/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+speech_analysis.db
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Alembic
+alembic/versions/*.pyc
+
+# User uploads and generated files
+uploads/*
+!uploads/.gitkeep
+
+# Completely ignore these folders
+audios/
+tmp_model/
+outputs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Model files (SpeechBrain/Whisper cache)
+*.ckpt
+*.pt
+*.pth
+models/
+checkpoints/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Shortcuts
+*.lnk
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
