@@ -2,7 +2,7 @@
 
 import logging
 import httpx
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from collections import Counter
 from config.settings import OLLAMA_BASE_URL, DEFAULT_MODEL
 
@@ -153,10 +153,9 @@ class LLMService:
         """
         Split transcript into chunks with sentence boundaries.
         
-        Optimized for Qwen2.5:7B (32K context window):
         - Default chunk size: 12,000 chars (~3,000 tokens)
         - Increased from 4,000 chars for better context understanding
-        - Still only uses ~9% of Qwen's 32,768 token capacity
+        - Still only uses ~9% of token capacity
         """
         
         if len(transcript) <= max_size:
@@ -184,14 +183,22 @@ class LLMService:
         return chunks
     
     @staticmethod
-    def _build_enhanced_chunk_prompt(chunk: str, prompt_template: str, previous_context: str, chunk_num: int, total_chunks: int) -> str:
+    def _build_enhanced_chunk_prompt(chunk: str, prompt_template: str, previous_context: str, chunk_num: int, total_chunks: int, language: Optional[str] = None) -> str:
         """Build enhanced prompt for a chunk with clear chunking instructions"""
+        
+        # Build language instruction if language is provided
+        language_instruction = ""
+        if language:
+            language_instruction = f"LANGUAGE: Provide your entire analysis in {language}.\n\n"
+            logger.info(f"🌍 Chunk {chunk_num}/{total_chunks}: Adding language instruction for '{language}'")
+        else:
+            logger.info(f"⚠️  Chunk {chunk_num}/{total_chunks}: NO language parameter - LLM will decide language")
         
         # Start with chunking context instruction
         chunking_instruction = f"""
 IMPORTANT: You are analyzing CHUNK {chunk_num} of {total_chunks} from a larger transcript. This is part of a sequential analysis.
 
-INSTRUCTIONS:
+{language_instruction}INSTRUCTIONS:
 - This is NOT the complete transcript, only part {chunk_num} of {total_chunks}
 - Focus on analyzing this specific chunk while being aware it's part of a larger document
 - Build upon insights from previous chunks when relevant
@@ -224,12 +231,12 @@ PREVIOUS ANALYSIS CONTEXT (from chunk {chunk_num-1}):
         return final_prompt
     
     @staticmethod
-    async def _process_with_enhanced_chunking(transcript: str, prompt_template: str, model: str, prompt_title: str) -> str:
+    async def _process_with_enhanced_chunking(transcript: str, prompt_template: str, model: str, prompt_title: str, language: Optional[str] = None) -> str:
         """Process large transcript with enhanced chunking and final synthesis"""
         
         # Split transcript into chunks
         chunks = LLMService._split_transcript_into_chunks(transcript)
-        logger.info(f"Split transcript into {len(chunks)} chunks")
+        logger.info(f"Split transcript into {len(chunks)} chunks (Language: {language or 'not specified'})")
         
         chunk_responses = []
         previous_context = ""
@@ -240,7 +247,7 @@ PREVIOUS ANALYSIS CONTEXT (from chunk {chunk_num-1}):
             
             # Build chunk-aware prompt
             chunk_prompt = LLMService._build_enhanced_chunk_prompt(
-                chunk, prompt_template, previous_context, i+1, len(chunks)
+                chunk, prompt_template, previous_context, i+1, len(chunks), language
             )
             
             # Process chunk
@@ -252,22 +259,30 @@ PREVIOUS ANALYSIS CONTEXT (from chunk {chunk_num-1}):
         
         # NEW: Final synthesis step - combine all chunk responses
         logger.info(f"Synthesizing final response from {len(chunk_responses)} chunks")
-        final_response = await LLMService._synthesize_final_response(chunk_responses, prompt_template, prompt_title, model)
+        final_response = await LLMService._synthesize_final_response(chunk_responses, prompt_template, prompt_title, model, language)
         
         return final_response
     
     @staticmethod
-    async def _synthesize_final_response(chunk_responses: list, prompt_template: str, prompt_title: str, model: str) -> str:
+    async def _synthesize_final_response(chunk_responses: list, prompt_template: str, prompt_title: str, model: str, language: Optional[str] = None) -> str:
         """Synthesize all chunk responses into a single enhanced final output"""
         
         if len(chunk_responses) == 1:
             return chunk_responses[0]
         
+        # Build language instruction if language is provided
+        language_instruction = ""
+        if language:
+            language_instruction = f"LANGUAGE: Provide your entire synthesis in {language}.\n\n"
+            logger.info(f"🌍 Synthesis: Adding language instruction for '{language}'")
+        else:
+            logger.info(f"⚠️  Synthesis: NO language parameter - LLM will decide language")
+        
         # Create synthesis prompt
         synthesis_prompt = f"""
 SYNTHESIS TASK: Create a comprehensive, unified analysis from the following chunk analyses.
 
-ORIGINAL ANALYSIS TYPE: {prompt_title}
+{language_instruction}ORIGINAL ANALYSIS TYPE: {prompt_title}
 
 You have {len(chunk_responses)} chunk analyses from a large transcript. Your task is to:
 1. Synthesize these into ONE cohesive, comprehensive analysis
@@ -275,7 +290,6 @@ You have {len(chunk_responses)} chunk analyses from a large transcript. Your tas
 3. Create a unified narrative that flows logically
 4. Ensure all important insights are preserved
 5. Organize the content in a clear, structured way
-6. Respond in the same language as the original transcript content
 
 CHUNK ANALYSES TO SYNTHESIZE:
 

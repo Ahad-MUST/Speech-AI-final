@@ -81,6 +81,9 @@ async def process_with_llm(
         prompt_key = request.prompt_key
         custom_prompt = request.custom_prompt
         
+        # Variable to store detected language
+        transcript_language = None
+        
         # NEW: Load transcript from database if session_id provided
         if session_id and not transcript:
             try:
@@ -98,6 +101,10 @@ async def process_with_llm(
                         detail=f"Transcript with session ID '{session_id}' not found or access denied"
                     )
                 
+                # Extract language from transcript record
+                transcript_language = transcript_record.language
+                logger.info(f"🌍 Language detected from transcript record: {transcript_language if transcript_language else 'NONE - No language stored in database'}")
+                
                 # Extract transcript text from segments
                 transcript_dict = transcript_record.to_dict(include_segments=True, include_metadata=False)
                 segments = transcript_dict.get("segments", [])
@@ -111,7 +118,7 @@ async def process_with_llm(
                 
                 transcript = "\n".join(transcript_lines)
                 
-                logger.info(f"Loaded transcript from database: {session_id}")
+                logger.info(f"Loaded transcript from database: {session_id} (Language: {transcript_language or 'not detected'})")
                 
             except HTTPException:
                 raise
@@ -136,7 +143,7 @@ async def process_with_llm(
         prompt_template = ""
         prompt_title = ""
         
-        # ✅ FIXED: Auto-append transcript reference for custom prompts
+        # âœ… FIXED: Auto-append transcript reference for custom prompts
         if prompt_key == "custom_analysis":
             if not custom_prompt or not custom_prompt.strip():
                 raise HTTPException(status_code=400, detail="Custom prompt is required for custom analysis")
@@ -200,6 +207,9 @@ async def process_with_llm(
         if not ollama_status["model_available"]:
             raise HTTPException(status_code=503, detail=f"Model {DEFAULT_MODEL} not available")
         
+        # Log language status before processing
+        logger.info(f"📝 Starting LLM processing - Language parameter: {transcript_language if transcript_language else 'NOT SET (will use LLM default)'}")
+        
         # Check if transcript needs chunking
         # Optimized for Qwen2.5:7B (32K context window)
         MAX_TRANSCRIPT_SIZE = 25000  # Increased from 6000 to utilize Qwen's capacity better
@@ -207,6 +217,7 @@ async def process_with_llm(
         if len(transcript) <= MAX_TRANSCRIPT_SIZE:
             # Process normally (existing logic)
             logger.info(f"Processing with LLM: {prompt_key} (length: {len(transcript)} chars)")
+            logger.info(f"⚠️  Non-chunked processing - Language parameter NOT passed (transcript too small for chunking)")
             
             final_prompt = prompt_template.replace("{transcript}", transcript)
             if "{former_chunk}" in final_prompt:
@@ -217,7 +228,8 @@ async def process_with_llm(
         else:
             # Process with enhanced chunking and final synthesis
             logger.info(f"Processing with enhanced chunking: {prompt_key} (length: {len(transcript)} chars)")
-            llm_response = await LLMService._process_with_enhanced_chunking(transcript, prompt_template, DEFAULT_MODEL, prompt_title)
+            logger.info(f"✅ Chunked processing - Passing language parameter: '{transcript_language}' to LLM service")
+            llm_response = await LLMService._process_with_enhanced_chunking(transcript, prompt_template, DEFAULT_MODEL, prompt_title, transcript_language)
         
         # Store result in database
         # NEW: Use session_id if provided, otherwise generate one

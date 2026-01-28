@@ -47,7 +47,7 @@ class TranscriptDetail(BaseModel):
     segments: List[dict]
     metadata: Optional[dict]
     speaker_stats: Optional[dict]
-    processing_settings: Optional[dict]
+    processing_settings: Optional[dict] = None
     num_speakers: Optional[int]
     language: Optional[str]
     duration_seconds: Optional[float]

@@ -12,6 +12,7 @@ import warnings
 import logging
 from sklearn.cluster import AgglomerativeClustering
 import time
+import shutil
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)
@@ -39,50 +40,64 @@ class SpeechBrainEngine:
         self._initialize_models()
     
     def _initialize_models(self):
-        """Initialize SpeechBrain models with Mac-specific fixes"""
+        """Initialize SpeechBrain models with Windows symlink fix"""
         try:
             import speechbrain
             from speechbrain.pretrained import EncoderClassifier
             
             print("Loading SpeechBrain models...")
             
-            # Mac-specific environment setup
-            import os
-            os.environ['SPEECHBRAIN_CACHE'] = os.path.expanduser('~/.cache/speechbrain')
+            # Find cached model
+            hf_cache_dir = os.environ.get('HF_HOME', os.path.join(os.path.expanduser('~'), '.cache', 'huggingface'))
+            cached_model_path = os.path.join(hf_cache_dir, 'hub', 'models--speechbrain--spkrec-ecapa-voxceleb')
             
-            # Try local model first if it exists
-            local_model_path = "./speechbrain_models/ecapa"
-            if os.path.exists(local_model_path):
+            cached_snapshot = None
+            if os.path.exists(cached_model_path):
+                snapshots_dir = os.path.join(cached_model_path, 'snapshots')
+                if os.path.exists(snapshots_dir):
+                    snapshots = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
+                    if snapshots:
+                        cached_snapshot = os.path.join(snapshots_dir, snapshots[0])
+                        print(f"Found cached model at: {cached_snapshot}")
+            
+            # Copy files instead of symlinking
+            if cached_snapshot and os.path.exists(cached_snapshot):
                 try:
+                    # Create a local copy directory
+                    local_model_dir = os.path.join(os.getcwd(), 'speechbrain_local_model')
+                    
+                    # Only copy if not already copied
+                    if not os.path.exists(local_model_dir) or len(os.listdir(local_model_dir)) == 0:
+                        print(f"Copying model files to avoid symlink issues...")
+                        if os.path.exists(local_model_dir):
+                            shutil.rmtree(local_model_dir)
+                        shutil.copytree(cached_snapshot, local_model_dir)
+                        print(f"✅ Model files copied to: {local_model_dir}")
+                    else:
+                        print(f"Using existing local model at: {local_model_dir}")
+                    
+                    # Load from the copied directory
                     self.embedding_model = EncoderClassifier.from_hparams(
-                        source=local_model_path,
+                        source=local_model_dir,
                         run_opts={"device": "cpu"}
                     )
-                    print("SpeechBrain model loaded from local cache")
+                    print("✅ SpeechBrain model loaded successfully!")
+                    self.vad_model = None
+                    return
+                    
                 except Exception as e:
-                    print(f"Local model failed: {e}, trying remote...")
-                    self.embedding_model = None
+                    print(f"Failed to load copied model: {e}")
+                    # Clean up failed copy
+                    if os.path.exists(local_model_dir):
+                        try:
+                            shutil.rmtree(local_model_dir)
+                        except:
+                            pass
             
-            # If local model failed or doesn't exist, try remote
-            if self.embedding_model is None:
-                try:
-                    self.embedding_model = EncoderClassifier.from_hparams(
-                        source="speechbrain/spkrec-ecapa-voxceleb",
-                        run_opts={"device": "cpu"},
-                        savedir="tmp_model"
-                    )
-                    print("SpeechBrain embedding model loaded from remote")
-                except Exception as e:
-                    print(f"Remote model failed: {e}")
-                    self.embedding_model = None
-            
-            # Skip VAD model - it's causing issues
+            # If we get here, all methods failed
+            print("❌ All loading methods failed")
+            self.embedding_model = None
             self.vad_model = None
-            
-            if self.embedding_model:
-                print("SpeechBrain models initialized successfully")
-            else:
-                print("SpeechBrain models failed - using energy-based fallback")
                 
         except ImportError:
             raise ImportError("SpeechBrain not installed. Run: pip install speechbrain==0.5.16")
@@ -225,7 +240,6 @@ class SpeechBrainEngine:
         merged.append(current_seg)
         return merged
     
-    # Keep all other methods from your original file...
     def _preprocess_audio(self, audio_path: Path) -> str:
         """Preprocess audio for SpeechBrain processing"""
         try:
@@ -300,14 +314,12 @@ class SpeechBrainEngine:
         except Exception:
             return np.random.randn(self.EMBEDDING_SIZE) * 0.1
     
-    # Include all other methods from your original implementation...
-    # _perform_clustering, _create_segments, _postprocess_segments, etc.
     def _perform_clustering(
-    self, 
-    embeddings: np.ndarray, 
-    voice_activity: List[bool],
-    num_speakers: Optional[int],
-    max_speakers: int
+        self, 
+        embeddings: np.ndarray, 
+        voice_activity: List[bool],
+        num_speakers: Optional[int],
+        max_speakers: int
     ) -> np.ndarray:
         """Perform speaker clustering"""
         try:

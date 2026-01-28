@@ -102,3 +102,9 @@ dmypy.json
 
 # Pyre
 .pyre/
+
+pretrained_models/
+speechbrain_local_model/
+*.pt
+*.ckpt
+*.bin
