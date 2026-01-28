@@ -16,7 +16,7 @@ import QueueStatusDisplay from '../Components/transcription/QueueStatusDisplay';
 import AudioPlayer from '../Components/transcription/AudioPlayer';
 import TranscriptionSidebar from '../Components/TranscriptionSidebar';
 
-// ✅ UTILITY: Comprehensive results structure validation
+// âœ… UTILITY: Comprehensive results structure validation
 const validateAndNormalizeResults = (fetchedData) => {
   if (!fetchedData) return null;
 
@@ -75,7 +75,7 @@ const validateAndNormalizeResults = (fetchedData) => {
   return normalizedResults;
 };
 
-// ✅ MAIN COMPONENT
+// âœ… MAIN COMPONENT
 const TranscriptionPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -93,12 +93,12 @@ const TranscriptionPage = () => {
   // Track current view state
   const [currentView, setCurrentView] = useState('original');
   
-  // ✅ Audio player state - ENHANCED
+  // âœ… Audio player state - ENHANCED
   const [audioUrl, setAudioUrl] = useState(null);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [audioError, setAudioError] = useState(null);
   
-  // ✅ Use Zustand store for persistent state
+  // âœ… Use Zustand store for persistent state
   const currentSessionId = useAppStore((state) => state.currentSessionId);
   const setCurrentSessionId = useAppStore((state) => state.setCurrentSessionId);
   const processingStatus = useAppStore((state) => state.processingStatus);
@@ -110,7 +110,7 @@ const TranscriptionPage = () => {
   const structures = useAppStore((state) => state.structures);
   const parameters = useAppStore((state) => state.parameters);
   
-  // ✅ Transcript history state
+  // âœ… Transcript history state
   const selectTranscript = useAppStore((state) => state.selectTranscript);
   const isSidebarOpen = useAppStore((state) => state.isSidebarOpen);
 
@@ -119,12 +119,12 @@ const TranscriptionPage = () => {
     setCurrentView(view);
   }, []);
 
-  // ✅ CRITICAL: Handle segment click to jump to timestamp
+  // âœ… CRITICAL: Handle segment click to jump to timestamp
   const handleSegmentClick = useCallback((timestamp) => {
-    console.log('🎯 Segment clicked - jumping to timestamp:', timestamp);
+    console.log('ðŸŽ¯ Segment clicked - jumping to timestamp:', timestamp);
     
     if (!audioPlayerRef.current) {
-      console.warn('⚠️ Audio player ref not available');
+      console.warn('âš ï¸ Audio player ref not available');
       toast.error('Audio player not ready');
       return;
     }
@@ -133,7 +133,7 @@ const TranscriptionPage = () => {
     const isReady = audioPlayerRef.current.isReady?.();
     
     if (!isReady) {
-      console.warn('⚠️ Audio player not ready yet');
+      console.warn('âš ï¸ Audio player not ready yet');
       toast.error('Audio is still loading, please wait');
       return;
     }
@@ -149,16 +149,34 @@ const TranscriptionPage = () => {
       
       // Removed toast notification for successful jump
     } else {
-      console.warn('⚠️ Seek operation failed');
+      console.warn('âš ï¸ Seek operation failed');
       toast.error('Failed to jump to timestamp');
     }
   }, []);
 
-  // ✅ CRITICAL: Load audio URL when session changes
+
+  // ✅ CRITICAL: Auto-complete processingStatus when results exist
+  // This ensures AudioPlayer renders immediately when loading existing transcripts
+  useEffect(() => {
+    const hasValidResults = results && validateAndNormalizeResults(results);
+    
+    // If we have results but processingStatus isn't completed, set it
+    // This handles cases where transcript is loaded from sidebar/history
+    if (hasValidResults && processingStatus?.status !== 'completed') {
+      console.log('✅ Results exist - auto-setting processingStatus to completed');
+      setProcessingStatus({
+        status: 'completed',
+        progress: 100,
+        message: 'Processing completed successfully!'
+      });
+    }
+  }, [results, processingStatus, setProcessingStatus]);
+
+  // âœ… CRITICAL: Load audio URL when session changes
   useEffect(() => {
     // Check if session changed
     if (currentSessionId !== lastSessionIdRef.current) {
-      console.log('🔄 Session changed, updating audio:', {
+      console.log('ðŸ”„ Session changed, updating audio:', {
         from: lastSessionIdRef.current,
         to: currentSessionId
       });
@@ -171,28 +189,28 @@ const TranscriptionPage = () => {
       lastSessionIdRef.current = currentSessionId;
     }
     
-    // ✅ FIX: Only load audio URL if we have COMPLETED results
+    // âœ… FIX: Only load audio URL if we have COMPLETED results
     // Don't try to load audio while still processing
     const hasValidResults = results && validateAndNormalizeResults(results);
     const isCompleted = processingStatus?.status === 'completed';
     
     if (currentSessionId && hasValidResults && isCompleted) {
-      console.log('🎵 Loading audio URL for session:', currentSessionId);
+      console.log('ðŸŽµ Loading audio URL for session:', currentSessionId);
       const url = backendApi.getAudioUrl(currentSessionId);
       setAudioUrl(url);
     } else {
       // Clear audio URL if not completed
       if (audioUrl && !isCompleted) {
-        console.log('⏸️ Clearing audio URL - processing not completed');
+        console.log('â¸ï¸ Clearing audio URL - processing not completed');
         setAudioUrl(null);
         setIsAudioReady(false);
       }
     }
   }, [currentSessionId, results, processingStatus]);
 
-  // ✅ Handle audio loaded
+  // âœ… Handle audio loaded
   const handleAudioLoaded = useCallback((duration) => {
-    console.log('✅ Audio loaded successfully:', {
+    console.log('âœ… Audio loaded successfully:', {
       duration,
       sessionId: currentSessionId
     });
@@ -200,17 +218,17 @@ const TranscriptionPage = () => {
     setAudioError(null);
   }, [currentSessionId]);
 
-  // ✅ Handle audio error
+  // âœ… Handle audio error
   const handleAudioError = useCallback((error) => {
-    console.error('❌ Audio error:', error);
+    console.error('âŒ Audio error:', error);
     setAudioError(error);
     setIsAudioReady(false);
   }, []);
 
-  // ✅ Handle URL-based transcript loading
+  // âœ… Handle URL-based transcript loading
   useEffect(() => {
     if (urlSessionId && !location.state && urlSessionId !== currentSessionId) {
-      console.log('📄 Loading transcript from URL:', urlSessionId);
+      console.log('ðŸ“„ Loading transcript from URL:', urlSessionId);
       selectTranscript(urlSessionId).catch(error => {
         console.error('Failed to load transcript from URL:', error);
         toast.error('Failed to load transcript');
@@ -218,7 +236,7 @@ const TranscriptionPage = () => {
     }
   }, [urlSessionId, location.state, currentSessionId, selectTranscript]);
 
-  // ✅ Handle session initialization with refresh detection
+  // âœ… Handle session initialization with refresh detection
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
@@ -227,7 +245,7 @@ const TranscriptionPage = () => {
     
     // Check if we have results already (page refresh case)
     if (currentSessionId && results && !stateData) {
-      console.log('🔄 Page refresh detected - session already completed');
+      console.log('ðŸ”„ Page refresh detected - session already completed');
       if (processingStatus?.status !== 'completed') {
         setProcessingStatus({
           status: 'completed',
@@ -240,7 +258,7 @@ const TranscriptionPage = () => {
 
     // Handle new session from navigation
     if (stateData?.sessionId) {
-      console.log('🆕 Receiving new session:', stateData.sessionId);
+      console.log('ðŸ†• Receiving new session:', stateData.sessionId);
       
       hasShownCompletionToast.current = false;
       setCurrentSessionId(stateData.sessionId);
@@ -259,7 +277,7 @@ const TranscriptionPage = () => {
     }
   }, [location.state, setCurrentSessionId, setProcessingStatus, currentSessionId, results, processingStatus]);
 
-  // ✅ Start polling with single session logic
+  // âœ… Start polling with single session logic
   useEffect(() => {
     const sessionToUse = currentSessionId;
     const hasValidResults = results && validateAndNormalizeResults(results);
@@ -268,7 +286,7 @@ const TranscriptionPage = () => {
       return;
     }
 
-    console.log('🔁 Starting status polling for session:', sessionToUse);
+    console.log('ðŸ” Starting status polling for session:', sessionToUse);
 
     const pollStatus = async () => {
       try {
@@ -279,7 +297,7 @@ const TranscriptionPage = () => {
           const normalizedData = validateAndNormalizeResults(fetchedData);
           
           if (normalizedData) {
-            console.log('✅ Valid results found!');
+            console.log('âœ… Valid results found!');
             setResults(normalizedData);
             setProcessingStatus({
               status: 'completed',
@@ -310,7 +328,7 @@ const TranscriptionPage = () => {
           }
         }
       } catch (error) {
-        console.error('❌ Polling error:', error);
+        console.error('âŒ Polling error:', error);
       }
     };
 
@@ -325,9 +343,9 @@ const TranscriptionPage = () => {
     };
   }, [currentSessionId, results, processingStatus, setResults, setProcessingStatus, updateSession]);
 
-  // ✅ Handle transcript selection from sidebar
+  // âœ… Handle transcript selection from sidebar
   const handleTranscriptSelect = useCallback((sessionId) => {
-    console.log('📄 Transcript selected from sidebar:', sessionId);
+    console.log('ðŸ“„ Transcript selected from sidebar:', sessionId);
     navigate(`/results/${sessionId}`);
   }, [navigate]);
 
@@ -336,12 +354,12 @@ const TranscriptionPage = () => {
 
   return (
     <div className="flex h-screen bg-gradient-to-br from-psycon-light-teal/20 via-white to-psycon-lavender/30">
-      {/* ✅ Transcript History Sidebar */}
+      {/* âœ… Transcript History Sidebar */}
       <TranscriptionSidebar 
         onSelectTranscript={handleTranscriptSelect}
       />
       
-      {/* ✅ Main Content */}
+      {/* âœ… Main Content */}
       <div className={`flex-1 overflow-auto transition-all duration-300 ${isSidebarOpen ? 'ml-0' : 'ml-0'}`}>
         <div className="p-6 max-w-6xl mx-auto">
           
@@ -390,12 +408,12 @@ const TranscriptionPage = () => {
             </motion.div>
           )}
           
-          {/* ✅ Spacer for fixed audio player */}
+          {/* âœ… Spacer for fixed audio player */}
           {audioUrl && hasResults && <div className="h-24" />}
         </div>
       </div>
 
-      {/* ✅ CRITICAL: Audio Player - Fixed at bottom with proper session tracking */}
+      {/* âœ… CRITICAL: Audio Player - Fixed at bottom with proper session tracking */}
       {audioUrl && hasResults && (
         <div className="fixed bottom-0 left-0 right-0 z-40">
           <AudioPlayer
